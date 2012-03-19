@@ -1,15 +1,16 @@
 import javax.sound.sampled.*;
-
+import java.util.*;
 
 class TTYInput implements Runnable
 {
-	static final int kBufferSize = 4096;
+	static final int kBufferSize = 1600;
 	static final double kMarkFrequency = 1400f;
 	static final double kSpaceFrequency = 1800f;
 	static final int kBitsPerSecond = 45;
 	static final float kSampleRate = 8000f;
 	static final int kBitsPerCharacter = 5;
 	static final int kSamplesPerBit = (int) (kSampleRate / kBitsPerSecond);
+	static final long kGuardDelay =  (long) (1000 * kBufferSize / kSampleRate * 2);
 
 	public TTYInput()
 	{
@@ -46,9 +47,27 @@ class TTYInput implements Runnable
 		fHandler = handler;
 	}
 	
-	void setIgnoreInput(boolean ignore)
+	synchronized void setIgnoreInput(boolean ignore)
 	{
-		fIgnoreInput = ignore;
+		if (ignore)
+		{
+			if (fGuardTimer != null)
+				fGuardTimer.cancel(); 
+
+			fIgnoreInput = true;
+		}
+		else
+		{
+			// Some data may be in the current input buffer.  Wait 
+			// a spell for it to empty out so we don't pick up pieces
+			// of the last character.
+			fGuardTimer = new Timer();
+			fGuardTimer.schedule(new TimerTask() {
+				public void run() {
+					fIgnoreInput = false;
+				}
+			}, kGuardDelay);
+		}
 	}
 
 	void processCode(char code)
@@ -72,7 +91,15 @@ class TTYInput implements Runnable
 
 	public void run()
 	{
-		byte[] data = new byte[kBufferSize];
+		IIRFilter markBPF = IIRFilter.makeBandpassFilter(kMarkFrequency, 
+			50.0, kSampleRate);
+		IIRFilter spaceBPF = IIRFilter.makeBandpassFilter(kSpaceFrequency, 
+			50.0, kSampleRate);
+		IIRFilter markLPF = IIRFilter.makeLowPassFilter(kBitsPerSecond,
+			kSampleRate);
+		IIRFilter spaceLPF = IIRFilter.makeLowPassFilter(kBitsPerSecond,
+			kSampleRate);
+		byte[] sampleBuffer = new byte[kBufferSize];
 		boolean waitForStartBit = true;
 		int currentWord = 0;
 		int bitCount = 0;
@@ -81,28 +108,28 @@ class TTYInput implements Runnable
 		fAudioSource.start();
 		while (true)
 		{
-			int got = fAudioSource.read(data, 0, data.length);
+			int got = fAudioSource.read(sampleBuffer, 0, sampleBuffer.length);
 			for (int i = 0; i < got; i += 2)
 			{
-				double sample = (double) ((data[i] << 8) | data[i + 1]) / 32767;
-				double markValue = fMarkBPF.processSample(sample);
-				double spaceValue = fSpaceBPF.processSample(sample);
-				double markLevel = fMarkLPF.processSample(Math.abs(markValue));
-				double spaceLevel = fSpaceLPF.processSample(Math.abs(spaceValue));
+				double sample = (double) ((sampleBuffer[i] << 8) | sampleBuffer[i + 1]) / 32767;
+				double markValue = markBPF.processSample(sample);
+				double spaceValue = spaceBPF.processSample(sample);
+				double markLevel = markLPF.processSample(Math.abs(markValue));
+				double spaceLevel = spaceLPF.processSample(Math.abs(spaceValue));
 				double nrzValue = markLevel - spaceLevel;
 				if (fIgnoreInput)
 				{
-					// This is set when we are transmitting so we don't decode
-					// our own signal.
+					// Drop the entire buffer if we are ignoring input.
 					waitForStartBit = true;
-					continue;
+					break;
 				}
 
 				boolean isMark = nrzValue > 0;
-			
 				if (waitForStartBit)
 				{
-					if (Math.abs(nrzValue) > 0.1 && !isMark)
+					// Set a threshold for the start bit so we don't trigger
+					// due to noise when there is no signal.
+					if (nrzValue < -0.1)
 					{
 						waitForStartBit = false;
 						bitDurationCounter = (int)(kSamplesPerBit * 1.5);
@@ -129,25 +156,16 @@ class TTYInput implements Runnable
 			}
 		}
 	}
-
-	private IIRFilter fMarkBPF = IIRFilter.makeBandpassFilter(kMarkFrequency, 
-		50.0, kSampleRate);
-	private IIRFilter fSpaceBPF = IIRFilter.makeBandpassFilter(kSpaceFrequency, 
-		50.0, kSampleRate);
-	private IIRFilter fMarkLPF = IIRFilter.makeLowPassFilter(kBitsPerSecond,
-		kSampleRate);
-	private IIRFilter fSpaceLPF = IIRFilter.makeLowPassFilter(kBitsPerSecond,
-		kSampleRate);
 	
 	// Baudot to unicode tables
-	char[] kLtrsTable = {
+	private static final char[] kLtrsTable = {
 		' ', 'E', '\n', 'A', ' ', 'S', 'I', 'U', 
 		'\r', 'D', 'R', 'J', 'N', 'F', 'C', 'K', 
 		'T', 'Z', 'L', 'W', 'H', 'Y', 'P', 'Q', 
 		'O', 'B', 'G', ' ', 'M', 'X', 'V', ' '
 	};
 
-	char[] kFigsTable = {
+	private static final char[] kFigsTable = {
 		' ', '3', '\n', '-', ' ', '-', '8', '7', 
 		'\r', '$', '4', '\'', ',', '!', ':', '(', 
 		'5', '\"', ')', '2', '=', '6', '0', '1', 
@@ -159,4 +177,5 @@ class TTYInput implements Runnable
 	private Thread fThread;
 	private TTYInputListener fHandler;
 	private boolean fIgnoreInput = false;
+	private Timer fGuardTimer;
 }

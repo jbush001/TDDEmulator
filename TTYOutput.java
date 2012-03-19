@@ -2,13 +2,13 @@ import javax.sound.sampled.*;
 
 class TTYOutput implements Runnable
 {
+	private static final int kBufferSize = 1600;	
 	static final float kMarkFrequency = 1400f;
 	static final float kSpaceFrequency = 1800f;
 	static final int kBitsPerSecond = 45;
 	static final float kSampleRate = 8000f;
 	static final int kBitsPerCharacter = 5;
 	static final int kSamplesPerBit = (int) (kSampleRate / kBitsPerSecond);
-	private static final int kBufferSize = 2048;	
 
 	interface TTYOutputListener
 	{

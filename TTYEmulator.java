@@ -39,7 +39,7 @@ class TTYEmulator extends JPanel
 		
 		fInput.setListener(new TTYInput.TTYInputListener() {
 			public void handleCode(char ch) {
-				addCode(ch);
+				addReceivedCharacter(ch);
 			}
 		});
 
@@ -54,13 +54,20 @@ class TTYEmulator extends JPanel
 
 	void handleTextInput()
 	{
-		String input = fInputField.getText();
+		String input = fInputField.getText() + "\n";
 		fInputField.setText("");
-		
+	
 		try
 		{
 			StyledDocument doc = fConversationView.getStyledDocument();
-			doc.insertString(doc.getLength(), "\n" + input + "\n", doc.getStyle("me"));
+			if (fUnterminatedInputLine)
+			{
+				// If the remote user was in the middle of a line, add a 
+				// line break here so the conversations don't get mixed.
+				doc.insertString(doc.getLength(), input, doc.getStyle("them"));
+			}
+
+			doc.insertString(doc.getLength(), input, doc.getStyle("me"));
 		}
 		catch (Exception exc)
 		{
@@ -70,8 +77,10 @@ class TTYEmulator extends JPanel
 		fOutput.enqueueString(input);
 	}
 	
-	void addCode(char ch)
+	void addReceivedCharacter(char ch)
 	{
+		fUnterminatedInputLine = (ch != '\n' && ch != '\r');
+
 		try
 		{
 			StyledDocument doc = fConversationView.getStyledDocument();
@@ -103,6 +112,7 @@ class TTYEmulator extends JPanel
 		}); 
 	}
 	
+	private boolean fUnterminatedInputLine = false;
 	private TTYOutput fOutput;
 	private TTYInput fInput;
 	private JTextPane fConversationView;
