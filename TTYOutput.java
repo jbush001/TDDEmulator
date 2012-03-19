@@ -41,8 +41,7 @@ class TTYOutput implements Runnable
 			System.out.println("TTYOutput: unable to open line " + exc);
 		}
 		
-		fMarkAudioBuffer = makeSampleBuffer(kMarkFrequency);
-		fSpaceAudioBuffer = makeSampleBuffer(kSpaceFrequency);
+		fOutputBuffer = new byte[kSamplesPerBit * 2];
 		fThread = new Thread(this);
 		fThread.start();
 	}
@@ -52,37 +51,24 @@ class TTYOutput implements Runnable
 		fMessageBuffer.append(message);
 		this.notify();
 	}
-
-	private byte[] makeSampleBuffer(float frequency)
-	{
-		byte[] buffer = new byte[kSamplesPerBit * 2];
-		for (int i = 0; i < kSamplesPerBit * 2; i = i + 2)
-		{
-			double angle = (frequency * (i / 2) / kSampleRate) * (Math.PI * 2);
-			short sample = (short)(Math.sin(angle) * 0x7fff);
-			buffer[i] = (byte)((sample >> 8) & 0xff);
-			buffer[i + 1] = (byte)(sample & 0xff);
-		}
-
-		return buffer;
-	}
 	
 	private void outputBit(boolean isMark)
 	{
-		byte[] sourceBuffer = isMark ? fMarkAudioBuffer : fSpaceAudioBuffer;
-		int totalWritten = 0;
-		while (totalWritten < sourceBuffer.length)
+		double dAngle = (isMark ? kMarkFrequency : kSpaceFrequency) 
+			* ((Math.PI * 2) / kSampleRate);
+	
+		for (int i = 0; i < kSamplesPerBit * 2; i += 2)
 		{
-			int thisCount = fAudioSink.write(sourceBuffer, totalWritten, 
-				sourceBuffer.length - totalWritten);	
-			if (thisCount <= 0)
-			{
-				System.out.println("write returned zero");
-				break;
-			}
+			fOutputAngle += dAngle;
+			if (fOutputAngle > Math.PI * 2)
+				fOutputAngle -= Math.PI * 2;
 				
-			totalWritten += thisCount;
+			short sample = (short)(Math.sin(fOutputAngle) * 0x7fff);
+			fOutputBuffer[i] = (byte)((sample >> 8) & 0xff);
+			fOutputBuffer[i + 1] = (byte)(sample & 0xff);
 		}
+
+		fAudioSink.write(fOutputBuffer, 0, fOutputBuffer.length);	
 	}
 
 	// Output a 5 bit code	
@@ -162,8 +148,8 @@ class TTYOutput implements Runnable
 	private boolean fModeIsFigs = false;
 	private SourceDataLine fAudioSink;
 	private Thread fThread;
-	private byte[] fMarkAudioBuffer;
-	private byte[] fSpaceAudioBuffer;
+	private byte[] fOutputBuffer;
+	private double fOutputAngle = 0.0;
 	private TTYOutputListener fListener;
 	
 	// Maps a 7 bit unicode code point to a 5 bit baudot code.	A -1 in this
