@@ -26,9 +26,9 @@ class TTYOutput implements Runnable
 		{
 			AudioFormat format = new AudioFormat(kSampleRate, 16, 1, true, true);
 			DataLine.Info info = new DataLine.Info(SourceDataLine.class, 
-                format);
-            if (!AudioSystem.isLineSupported(info))
-            {
+				format);
+			if (!AudioSystem.isLineSupported(info))
+			{
 				System.out.println("Line matching " + info + " not supported.");
 				return;
 			}
@@ -45,7 +45,7 @@ class TTYOutput implements Runnable
 		fSpaceAudioBuffer = makeSampleBuffer(kSpaceFrequency);
 		fThread = new Thread(this);
 		fThread.start();
- 	}
+	}
 
 	synchronized public void enqueueString(String message)
 	{
@@ -53,19 +53,19 @@ class TTYOutput implements Runnable
 		this.notify();
 	}
 
- 	private byte[] makeSampleBuffer(float frequency)
- 	{
- 		byte[] buffer = new byte[kSamplesPerBit * 2];
+	private byte[] makeSampleBuffer(float frequency)
+	{
+		byte[] buffer = new byte[kSamplesPerBit * 2];
 		for (int i = 0; i < kSamplesPerBit * 2; i = i + 2)
 		{
-	 		double angle = (frequency * (i / 2) / kSampleRate) * (Math.PI * 2);
+			double angle = (frequency * (i / 2) / kSampleRate) * (Math.PI * 2);
 			short sample = (short)(Math.sin(angle) * 0x7fff);
 			buffer[i] = (byte)((sample >> 8) & 0xff);
 			buffer[i + 1] = (byte)(sample & 0xff);
 		}
 
 		return buffer;
- 	}
+	}
 	
 	private void outputBit(boolean isMark)
 	{
@@ -99,7 +99,7 @@ class TTYOutput implements Runnable
 	{
 		int baudotCode = kUnicodeToBaudot[(int) c];
 		if (baudotCode < 0)
-			return;	// Skip this character
+			return; // Skip this character
 			
 		boolean codeIsFig = (baudotCode & 0x80) != 0;
 		if (codeIsFig && !fModeIsFigs)
@@ -166,8 +166,8 @@ class TTYOutput implements Runnable
 	private byte[] fSpaceAudioBuffer;
 	private TTYOutputListener fListener;
 	
-	// Maps a 7 bit unicode code point to a 5 bit baudot code.  A -1 in this
-	// table indicates no mapping.  If the 7th bit is set (0x80), then this
+	// Maps a 7 bit unicode code point to a 5 bit baudot code.	A -1 in this
+	// table indicates no mapping.	If the 7th bit is set (0x80), then this
 	// is in the FIG table, otherwise it is in the LTR table.
 	static final int[] kUnicodeToBaudot = {
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 130, -1, -1, 136, -1, -1, -1, 

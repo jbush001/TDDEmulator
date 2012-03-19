@@ -14,10 +14,10 @@ class TTYEmulator extends JPanel
 		StyledDocument doc = fConversationView.getStyledDocument();		
 		Style def = StyleContext.getDefaultStyleContext().getStyle(StyleContext.DEFAULT_STYLE);
 		Style regular = doc.addStyle("regular", def);
-        StyleConstants.setFontFamily(regular, "SansSerif");
+		StyleConstants.setFontFamily(regular, "SansSerif");
 		Style me = doc.addStyle("me", regular);
-        StyleConstants.setBold(me, true);
-        StyleConstants.setForeground(me, Color.blue);
+		StyleConstants.setBold(me, true);
+		StyleConstants.setForeground(me, Color.blue);
 		Style them = doc.addStyle("them", regular);
 		
 		JScrollPane conversationScroll = new JScrollPane(fConversationView);
@@ -60,7 +60,7 @@ class TTYEmulator extends JPanel
 		try
 		{
 			StyledDocument doc = fConversationView.getStyledDocument();
-			doc.insertString(doc.getLength(), input + "\n", doc.getStyle("me"));
+			doc.insertString(doc.getLength(), "\n" + input + "\n", doc.getStyle("me"));
 		}
 		catch (Exception exc)
 		{
@@ -83,28 +83,24 @@ class TTYEmulator extends JPanel
 		}
 	}
 
-    private static void createAndShowGUI() 
-    {
-		//Create and set up the window.
+	private static void createAndShowGUI() 
+	{
 		JFrame frame = new JFrame("TTY Emulator");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		//Add the ubiquitous "Hello World" label.
 		TTYEmulator emulator = new TTYEmulator();
 		frame.getContentPane().add(emulator);
-		
-		//Display the window.
 		frame.pack();
 		frame.setVisible(true);
-    }
+	}
 
 	public static void main(String[] args)
 	{
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                createAndShowGUI();
-            }
-        });	
+			public void run() {
+				createAndShowGUI();
+			}
+		}); 
 	}
 	
 	private TTYOutput fOutput;

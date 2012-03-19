@@ -17,9 +17,9 @@ class TTYInput implements Runnable
 		{
 			AudioFormat format = new AudioFormat(kSampleRate, 16, 1, true, true);
 			DataLine.Info info = new DataLine.Info(TargetDataLine.class, 
-                format);
-            if (!AudioSystem.isLineSupported(info))
-            {
+				format);
+			if (!AudioSystem.isLineSupported(info))
+			{
 				System.out.println("Line matching " + info + " not supported.");
 				return;
 			}
@@ -34,7 +34,7 @@ class TTYInput implements Runnable
 
 		fThread = new Thread(this);
 		fThread.start();
- 	}
+	}
 
 	interface TTYInputListener
 	{
@@ -85,11 +85,11 @@ class TTYInput implements Runnable
 			for (int i = 0; i < got; i += 2)
 			{
 				double sample = (double) ((data[i] << 8) | data[i + 1]) / 32767;
-				double markValue = fMarkFilter.processSample(sample);
-				double spaceValue = fSpaceFilter.processSample(sample);
-				double markFiltered = fMarkLPF.processSample(Math.abs(markValue));
-				double spaceFiltered = fSpaceLPF.processSample(Math.abs(spaceValue));
-				double nrzValue = markFiltered - spaceFiltered;
+				double markValue = fMarkBPF.processSample(sample);
+				double spaceValue = fSpaceBPF.processSample(sample);
+				double markLevel = fMarkLPF.processSample(Math.abs(markValue));
+				double spaceLevel = fSpaceLPF.processSample(Math.abs(spaceValue));
+				double nrzValue = markLevel - spaceLevel;
 				if (fIgnoreInput)
 				{
 					// This is set when we are transmitting so we don't decode
@@ -130,9 +130,9 @@ class TTYInput implements Runnable
 		}
 	}
 
-	private IIRFilter fMarkFilter = IIRFilter.makeBandpassFilter(kMarkFrequency, 
+	private IIRFilter fMarkBPF = IIRFilter.makeBandpassFilter(kMarkFrequency, 
 		50.0, kSampleRate);
-	private IIRFilter fSpaceFilter = IIRFilter.makeBandpassFilter(kSpaceFrequency, 
+	private IIRFilter fSpaceBPF = IIRFilter.makeBandpassFilter(kSpaceFrequency, 
 		50.0, kSampleRate);
 	private IIRFilter fMarkLPF = IIRFilter.makeLowPassFilter(kBitsPerSecond,
 		kSampleRate);
