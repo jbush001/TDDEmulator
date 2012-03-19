@@ -64,7 +64,7 @@ class TTYEmulator extends JPanel
 			{
 				// If the remote user was in the middle of a line, add a 
 				// line break here so the conversations don't get mixed.
-				doc.insertString(doc.getLength(), input, doc.getStyle("them"));
+				doc.insertString(doc.getLength(), "\n", doc.getStyle("them"));
 			}
 
 			doc.insertString(doc.getLength(), input, doc.getStyle("me"));
